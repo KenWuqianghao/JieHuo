@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+checkpoints/
+*.onnx
+!web/public/models/**/*.onnx
+
+# Data (large files)
+data/raw/
+data/synthetic/
+data/labeled/
+data/gold/
+!data/gold/.gitkeep
+!data/raw/.gitkeep
+!data/synthetic/.gitkeep
+!data/labeled/.gitkeep
+
+# Env
+.env
+.env.local
+
+# Node
+web/node_modules/
+web/.next/
+web/out/
+web/.vercel/
+
+# OS
+.DS_Store
+*.log

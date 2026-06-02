@@ -9,15 +9,21 @@ const REMOTE_MODEL = process.env.NEXT_PUBLIC_MODEL_REPO;
 // Prefer local model in dev; use HF Hub in production when NEXT_PUBLIC_MODEL_REPO is set
 if (REMOTE_MODEL) {
   env.allowRemoteModels = true;
-  env.allowLocalModels = true;
+  env.allowLocalModels = false;
 } else {
   env.allowRemoteModels = false;
+  env.allowLocalModels = true;
   env.localModelPath = "/models/";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let classifier: any = null;
+let routerConfig: RouterConfig | null = null;
 const modelId = REMOTE_MODEL || LOCAL_MODEL;
+
+type RouterConfig = {
+  temperature?: number;
+};
 
 type WorkerRequest =
   | { type: "init" }
@@ -31,11 +37,49 @@ type WorkerResponse =
 async function initClassifier() {
   if (classifier) return classifier;
 
-  classifier = await pipeline("text-classification", modelId, {
-    dtype: "q8",
-  });
+  [classifier, routerConfig] = await Promise.all([
+    pipeline("text-classification", modelId, {
+      dtype: "q8",
+    }),
+    loadRouterConfig(),
+  ]);
 
   return classifier;
+}
+
+async function loadRouterConfig(): Promise<RouterConfig> {
+  const url = REMOTE_MODEL
+    ? `https://huggingface.co/${REMOTE_MODEL}/resolve/main/router_config.json`
+    : `/models/${LOCAL_MODEL}/router_config.json`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return {};
+    return (await res.json()) as RouterConfig;
+  } catch {
+    return {};
+  }
+}
+
+function applyTemperature(
+  scores: Record<RouteLabel, number>,
+  temperature: number
+): Record<RouteLabel, number> {
+  if (!Number.isFinite(temperature) || Math.abs(temperature - 1) < 0.001) {
+    return scores;
+  }
+
+  const googleLogit = Math.log(Math.max(scores.google, 1e-8)) / temperature;
+  const perplexityLogit = Math.log(Math.max(scores.perplexity, 1e-8)) / temperature;
+  const maxLogit = Math.max(googleLogit, perplexityLogit);
+  const googleExp = Math.exp(googleLogit - maxLogit);
+  const perplexityExp = Math.exp(perplexityLogit - maxLogit);
+  const total = googleExp + perplexityExp;
+
+  return {
+    google: googleExp / total,
+    perplexity: perplexityExp / total,
+  };
 }
 
 function parseResult(
@@ -62,10 +106,19 @@ function parseResult(
     }
   }
 
-  const label: RouteLabel = scores.perplexity >= scores.google ? "perplexity" : "google";
-  const confidence = Math.max(scores.google, scores.perplexity);
+  const temperature = routerConfig?.temperature ?? 1;
+  const calibratedScores = applyTemperature(scores, temperature);
+  const calibratedLabel: RouteLabel =
+    calibratedScores.perplexity >= calibratedScores.google ? "perplexity" : "google";
+  const confidence = Math.max(calibratedScores.google, calibratedScores.perplexity);
 
-  return { label, confidence, scores, source: "neural", rawLabels };
+  return {
+    label: calibratedLabel,
+    confidence,
+    scores: calibratedScores,
+    source: "neural",
+    rawLabels,
+  };
 }
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {

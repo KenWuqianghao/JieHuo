@@ -3,16 +3,25 @@
 
 from __future__ import annotations
 
-import ml._bootstrap  # noqa: F401
-
 import argparse
 import json
 import os
 import time
+from collections import Counter
 
+from dotenv import load_dotenv
 from tqdm import tqdm
 
-from ml.common import INTENT_BUCKETS, LANGUAGES, SYNTH_DIR, ensure_dirs, write_jsonl
+import ml._bootstrap  # noqa: F401
+from ml.common import (
+    INTENT_BUCKETS,
+    LANGUAGES,
+    SYNTH_DIR,
+    ensure_dirs,
+    normalize_query,
+    read_jsonl,
+    write_jsonl,
+)
 from ml.ollama_client import (
     DEFAULT_OLLAMA_MODEL,
     call_ollama,
@@ -70,7 +79,9 @@ Intent description:
 
 Expected routing hint: {label_hint} (but make queries realistic, not forced)
 
-Return JSON: {{"queries": ["query1", "query2", ...]}} with exactly {count} strings."""
+Return JSON: {{"queries": ["query1", "query2", ...]}} with exactly {count} strings.
+
+IMPORTANT: Every query MUST be written entirely in {language_name}. Do not use English unless the language is English."""
 
 
 def call_ollama_queries(prompt: str, model: str) -> list[str]:
@@ -88,7 +99,11 @@ def call_ollama_queries(prompt: str, model: str) -> list[str]:
 def call_openai(prompt: str, model: str = "gpt-4o-mini") -> list[str]:
     from openai import OpenAI
 
-    client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    kwargs: dict = {"api_key": os.environ.get("OPENAI_API_KEY")}
+    base_url = os.environ.get("OPENAI_BASE_URL")
+    if base_url:
+        kwargs["base_url"] = base_url
+    client = OpenAI(**kwargs)
     response = client.chat.completions.create(
         model=model,
         messages=[
@@ -252,22 +267,41 @@ def main() -> None:
     parser.add_argument("--sleep", type=float, default=0.1, help="Pause between Ollama calls")
     args = parser.parse_args()
 
+    load_dotenv()
     ensure_dirs()
 
     ollama_model = args.model or DEFAULT_OLLAMA_MODEL
     if args.provider == "ollama":
         if not ollama_available():
-            print(f"Error: Ollama not running. Start with: ollama serve")
+            print("Error: Ollama not running. Start with: ollama serve")
             print(f"Then pull model: ollama pull {ollama_model}")
             return
         print(f"Using Ollama model: {ollama_model}")
 
     records: list[dict] = []
+    out_path = SYNTH_DIR / "synthetic_queries.jsonl"
+    # Resume/top-up: load existing if present, then fill each language×intent bucket to target.
+    if out_path.exists():
+        records = list(read_jsonl(out_path))
+        print(f"Resuming with {len(records)} existing synthetic queries")
+
+    existing_queries = {
+        (r.get("language", ""), normalize_query(r.get("query", "")))
+        for r in records
+        if r.get("query")
+    }
 
     for lang in tqdm(LANGUAGES, desc="Languages"):
         for intent in INTENT_BUCKETS:
+            bucket_counts = Counter(
+                (r.get("language"), r.get("intent")) for r in records if r.get("source") == "synthetic"
+            )
+            existing_count = bucket_counts[(lang, intent)]
+            missing = max(0, args.per_bucket - existing_count)
+            if missing == 0:
+                continue
             prompt = USER_PROMPT_TEMPLATE.format(
-                count=args.per_bucket,
+                count=missing,
                 language_name=LANGUAGE_NAMES[lang],
                 intent=intent,
                 label_hint=INTENT_LABEL_HINT[intent],
@@ -281,15 +315,19 @@ def main() -> None:
                 elif args.provider == "ollama":
                     queries = call_ollama_queries(prompt, model=ollama_model)
                 else:
-                    queries = generate_fallback_queries(lang, intent, args.per_bucket)
+                    queries = generate_fallback_queries(lang, intent, missing)
 
                 time.sleep(args.sleep)
             except Exception as e:
                 print(f"Warning: generation failed for {lang}/{intent}: {e}")
-                queries = generate_fallback_queries(lang, intent, args.per_bucket)
+                queries = generate_fallback_queries(lang, intent, missing)
 
-            for q in queries[: args.per_bucket]:
+            added = 0
+            for q in queries:
                 if isinstance(q, str) and q.strip():
+                    key = (lang, normalize_query(q))
+                    if key in existing_queries:
+                        continue
                     records.append(
                         {
                             "query": q.strip(),
@@ -299,9 +337,13 @@ def main() -> None:
                             "expected_label": INTENT_LABEL_HINT[intent],
                         }
                     )
+                    existing_queries.add(key)
+                    added += 1
+                    if added >= missing:
+                        break
 
-    out_path = SYNTH_DIR / "synthetic_queries.jsonl"
-    write_jsonl(out_path, records)
+            write_jsonl(out_path, records)
+
     print(f"\nGenerated {len(records)} synthetic queries -> {out_path}")
 
 

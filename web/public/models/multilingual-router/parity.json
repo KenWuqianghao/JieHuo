@@ -1,0 +1,7 @@
+{
+  "n_samples": 200,
+  "pt_onnx_agreement": 1.0,
+  "pytorch_accuracy": 0.885,
+  "onnx_accuracy": 0.885,
+  "accuracy_drop": 0.0
+}

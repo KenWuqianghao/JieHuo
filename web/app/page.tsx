@@ -118,7 +118,7 @@ export default function Home() {
 
         <div className="status-bar">
           <span className={`status-dot ${status}`} />
-          {status === "loading" && "Loading model (~130 MB from Hugging Face)…"}
+          {status === "loading" && "Loading INT8 model (~113 MB)…"}
           {status === "ready" && "Neural model ready"}
           {status === "idle" && "Initializing…"}
           {status === "error" && "Model failed — routing uses heuristics only"}
@@ -238,7 +238,7 @@ export default function Home() {
       )}
 
       <footer className="footer">
-        Model: KenWu/multilingual-query-router · trained on 518 synthetic queries · e5-small
+        Model: multilingual-e5-small · GPT-4.1-mini teacher-distilled · calibrated INT8 ONNX
       </footer>
     </main>
   );

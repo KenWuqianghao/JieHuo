@@ -3,13 +3,12 @@
 
 from __future__ import annotations
 
-import ml._bootstrap  # noqa: F401
-
 import argparse
 import random
 from collections import defaultdict
 from pathlib import Path
 
+import ml._bootstrap  # noqa: F401
 from ml.common import (
     GOLD_DIR,
     LABEL_GOOGLE,
@@ -23,53 +22,64 @@ from ml.common import (
     write_jsonl,
 )
 
+VALID_LABELS = set(LABEL_NAMES.values())
+
+
+def normalize_label(label: object) -> str:
+    return str(label or "").strip().lower()
+
+
+def label_id(label: str) -> int:
+    return LABEL_PERPLEXITY if label == "perplexity" else LABEL_GOOGLE
+
+
+def resolved_record(record: dict, label: str, confidence: float, resolution: str) -> dict | None:
+    label = normalize_label(label)
+    if label not in VALID_LABELS:
+        return None
+    h_label = normalize_label(record.get("heuristic_label"))
+    h_conf = float(record.get("heuristic_confidence", 0) or 0)
+    l_conf = float(record.get("llm_confidence", 0) or 0)
+    return {
+        **record,
+        "label": label,
+        "label_id": label_id(label),
+        "confidence": max(0.0, min(1.0, float(confidence))),
+        "resolution": resolution,
+        "teacher_agreement": bool(h_label == label),
+        "teacher_margin": abs(h_conf - l_conf),
+    }
+
 
 def resolve_label(record: dict, min_confidence: float = 0.6) -> dict | None:
     """Resolve final label from heuristic + LLM labels."""
-    h_label = record.get("heuristic_label")
-    h_conf = record.get("heuristic_confidence", 0)
-    l_label = record.get("llm_label")
-    l_conf = record.get("llm_confidence", 0)
+    h_label = normalize_label(record.get("heuristic_label"))
+    h_conf = float(record.get("heuristic_confidence", 0) or 0)
+    l_label = normalize_label(record.get("llm_label"))
+    l_conf = float(record.get("llm_confidence", 0) or 0)
 
-    # Synthetic queries with expected_label get priority if high confidence
-    if record.get("source") == "synthetic" and record.get("expected_label"):
-        return {
-            **record,
-            "label": record["expected_label"],
-            "label_id": LABEL_PERPLEXITY if record["expected_label"] == "perplexity" else LABEL_GOOGLE,
-            "confidence": 0.85,
-            "resolution": "synthetic_expected",
-        }
+    # Synthetic queries have an explicit intended routing bucket.
+    expected_label = normalize_label(record.get("expected_label"))
+    if record.get("source") == "synthetic" and expected_label in VALID_LABELS:
+        return resolved_record(record, expected_label, 0.85, "synthetic_expected")
+
+    # LLM-labeled rows: trust Ollama/OpenAI at the configured confidence threshold.
+    if record.get("llm_reason") and not str(record.get("llm_reason", "")).startswith("heuristic_fallback"):
+        if l_label in VALID_LABELS and l_conf >= min_confidence:
+            resolution = "teacher_agreement" if h_label == l_label else "llm_primary"
+            return resolved_record(record, l_label, l_conf, resolution)
 
     # Agreement
-    if h_label == l_label:
+    if h_label == l_label and h_label in VALID_LABELS:
         conf = max(h_conf, l_conf)
         if conf >= min_confidence:
-            return {
-                **record,
-                "label": h_label,
-                "label_id": LABEL_PERPLEXITY if h_label == "perplexity" else LABEL_GOOGLE,
-                "confidence": conf,
-                "resolution": "agreement",
-            }
+            return resolved_record(record, h_label, conf, "agreement")
 
     # Disagreement — trust higher confidence
-    if h_conf >= l_conf and h_conf >= min_confidence:
-        return {
-            **record,
-            "label": h_label,
-            "label_id": LABEL_PERPLEXITY if h_label == "perplexity" else LABEL_GOOGLE,
-            "confidence": h_conf * 0.85,
-            "resolution": "heuristic_wins",
-        }
-    if l_conf >= min_confidence:
-        return {
-            **record,
-            "label": l_label,
-            "label_id": LABEL_PERPLEXITY if l_label == "perplexity" else LABEL_GOOGLE,
-            "confidence": l_conf * 0.85,
-            "resolution": "llm_wins",
-        }
+    if h_label in VALID_LABELS and h_conf >= l_conf and h_conf >= min_confidence:
+        return resolved_record(record, h_label, h_conf * 0.85, "heuristic_wins")
+    if l_label in VALID_LABELS and l_conf >= min_confidence:
+        return resolved_record(record, l_label, l_conf * 0.85, "llm_wins")
 
     # Low confidence disagreement — drop
     return None
@@ -100,21 +110,28 @@ def stratified_split(
 
 
 def create_gold_set(records: list[dict], size: int = 500) -> list[dict]:
-    """Sample stratified gold eval set from resolved records."""
-    per_lang = max(1, size // len(LANGUAGES))
+    """Sample a language- and label-balanced held-out set from resolved records."""
+    labels = list(LABEL_NAMES.values())
+    per_bucket = max(1, size // (len(LANGUAGES) * len(labels)))
     gold: list[dict] = []
-    by_lang: dict[str, list[dict]] = defaultdict(list)
+    by_bucket: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for r in records:
-        by_lang[r["language"]].append(r)
+        by_bucket[(r["language"], r["label"])].append(r)
 
     for lang in LANGUAGES:
-        pool = by_lang.get(lang, [])
-        random.shuffle(pool)
-        gold.extend(pool[:per_lang])
+        for label in labels:
+            pool = by_bucket.get((lang, label), [])
+            random.shuffle(pool)
+            gold.extend(pool[:per_bucket])
 
     # Fill remaining from any language
     if len(gold) < size:
-        remaining = [r for r in records if r not in gold]
+        gold_keys = {(g.get("language", ""), normalize_query(g["query"])) for g in gold}
+        remaining = [
+            r
+            for r in records
+            if (r.get("language", ""), normalize_query(r["query"])) not in gold_keys
+        ]
         random.shuffle(remaining)
         gold.extend(remaining[: size - len(gold)])
 
@@ -124,7 +141,7 @@ def create_gold_set(records: list[dict], size: int = 500) -> list[dict]:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Merge and split labeled data")
     parser.add_argument("--input", type=str, default=str(LABELED_DIR / "llm_labeled.jsonl"))
-    parser.add_argument("--min-confidence", type=float, default=0.6)
+    parser.add_argument("--min-confidence", type=float, default=0.55)
     parser.add_argument("--gold-size", type=int, default=500)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
@@ -161,8 +178,12 @@ def main() -> None:
     # Create gold set before splitting (held out from train)
     gold_size = min(args.gold_size, max(10, len(resolved) // 10))
     gold = create_gold_set(resolved, size=gold_size)
-    gold_queries = {normalize_query(g["query"]) for g in gold}
-    train_pool = [r for r in resolved if normalize_query(r["query"]) not in gold_queries]
+    gold_queries = {(g.get("language", ""), normalize_query(g["query"])) for g in gold}
+    train_pool = [
+        r
+        for r in resolved
+        if (r.get("language", ""), normalize_query(r["query"])) not in gold_queries
+    ]
 
     if len(train_pool) < 10:
         # Small dataset: use all for train, gold is a copy for eval only

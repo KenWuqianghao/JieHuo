@@ -3,8 +3,6 @@
 
 from __future__ import annotations
 
-import ml._bootstrap  # noqa: F401
-
 import argparse
 import json
 import shutil
@@ -14,6 +12,7 @@ import numpy as np
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
+import ml._bootstrap  # noqa: F401
 from ml.common import CHECKPOINT_DIR, E5_QUERY_PREFIX, GOLD_DIR, ROOT, ensure_dirs, read_jsonl
 
 
@@ -104,7 +103,7 @@ def verify_parity(
     }
 
 
-def prepare_web_model(onnx_dir: Path, web_model_dir: Path) -> None:
+def prepare_web_model(onnx_dir: Path, web_model_dir: Path, temperature: float) -> None:
     """Copy model files to web/public/models/multilingual-router/."""
     web_model_dir.mkdir(parents=True, exist_ok=True)
 
@@ -136,6 +135,16 @@ def prepare_web_model(onnx_dir: Path, web_model_dir: Path) -> None:
     with (web_model_dir / "config.json").open("w") as f:
         json.dump(config, f, indent=2)
 
+    router_config = {
+        "temperature": temperature,
+        "confidence_thresholds": {
+            "balanced_gold_90_accuracy": 0.80,
+            "heldout_test_90_accuracy": 0.85,
+        },
+    }
+    with (web_model_dir / "router_config.json").open("w") as f:
+        json.dump(router_config, f, indent=2)
+
     print(f"Web model prepared at {web_model_dir}")
 
 
@@ -145,6 +154,12 @@ def main() -> None:
     parser.add_argument("--output", type=str, default=str(ROOT / "web" / "public" / "models" / "multilingual-router"))
     parser.add_argument("--gold", type=str, default=str(GOLD_DIR / "gold.jsonl"))
     parser.add_argument("--skip-quantize", action="store_true")
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=1.0,
+        help="Optional confidence calibration temperature exported to the web runtime",
+    )
     args = parser.parse_args()
 
     ensure_dirs()
@@ -167,7 +182,7 @@ def main() -> None:
     gold_path = Path(args.gold)
     if gold_path.exists():
         parity = verify_parity(model_path, export_dir, gold_path)
-        print(f"\nParity check:")
+        print("\nParity check:")
         print(f"  PT-ONNX agreement: {parity['pt_onnx_agreement']:.4f}")
         print(f"  PyTorch accuracy:  {parity['pytorch_accuracy']:.4f}")
         print(f"  ONNX accuracy:     {parity['onnx_accuracy']:.4f}")
@@ -176,7 +191,7 @@ def main() -> None:
         with (export_dir / "parity.json").open("w") as f:
             json.dump(parity, f, indent=2)
 
-    prepare_web_model(export_dir, output_dir)
+    prepare_web_model(export_dir, output_dir, args.temperature)
     print(f"\nDone. Model ready for web deployment at {output_dir}")
 
 

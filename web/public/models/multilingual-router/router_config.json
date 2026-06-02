@@ -1,0 +1,7 @@
+{
+  "temperature": 1.25,
+  "confidence_thresholds": {
+    "balanced_gold_90_accuracy": 0.8,
+    "heldout_test_90_accuracy": 0.85
+  }
+}

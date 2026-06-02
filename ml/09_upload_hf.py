@@ -3,21 +3,27 @@
 
 from __future__ import annotations
 
-import ml._bootstrap  # noqa: F401
-
 import argparse
+import os
+import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+import ml._bootstrap  # noqa: F401
+from ml.common import ROOT, ensure_dirs
 
 load_dotenv()
 
-from ml.common import ROOT, ensure_dirs
-
 # Only upload files needed by transformers.js (skip duplicate ONNX variants)
 UPLOAD_PATTERNS = [
+    "README.md",
     "config.json",
     "tokenizer.json",
     "tokenizer_config.json",
     "special_tokens_map.json",
     "label_config.json",
+    "router_config.json",
     "onnx/model_quantized.onnx",
 ]
 
@@ -53,14 +59,18 @@ def main() -> None:
     parser.add_argument("--private", action="store_true")
     args = parser.parse_args()
 
-    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
-    if not token:
-        print("Error: HF token not found.")
-        print("  export HF_TOKEN=hf_...   # from https://huggingface.co/settings/tokens")
-        print("  # or add HF_TOKEN=... to a .env file in the repo root")
-        sys.exit(1)
-
     from huggingface_hub import HfApi
+
+    token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_TOKEN")
+    api = HfApi(token=token)
+    try:
+        user = api.whoami()
+        print(f"Hugging Face auth: {user.get('name', 'unknown')}")
+    except Exception:
+        print("Error: Hugging Face authentication not found.")
+        print("  Run: huggingface-cli login")
+        print("  or export HF_TOKEN=hf_... from https://huggingface.co/settings/tokens")
+        sys.exit(1)
 
     model_dir = Path(args.model_dir)
     if not model_dir.exists():
@@ -74,7 +84,6 @@ def main() -> None:
     for f in upload_files:
         print(f"  - {f.relative_to(model_dir)} ({f.stat().st_size / (1024 * 1024):.1f} MB)")
 
-    api = HfApi(token=token)
     print("\nCreating repo (if needed)...")
     api.create_repo(repo_id=args.repo, repo_type="model", private=args.private, exist_ok=True)
 
@@ -92,13 +101,13 @@ def main() -> None:
             repo_type="model",
             commit_message=f"Upload {rel}",
         )
-        print(f"    done.", flush=True)
+        print("    done.", flush=True)
 
-    print(f"\n✓ Upload complete!")
-    print(f"\nNext steps:")
+    print("\n✓ Upload complete!")
+    print("\nNext steps:")
     print(f"  1. Verify: https://huggingface.co/{args.repo}")
     print(f"  2. Set Vercel env var: NEXT_PUBLIC_MODEL_REPO={args.repo}")
-    print(f"  3. Redeploy: cd web && npx vercel --prod")
+    print("  3. Redeploy: cd web && npx vercel --prod")
 
 
 if __name__ == "__main__":

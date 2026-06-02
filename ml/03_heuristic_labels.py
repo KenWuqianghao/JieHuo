@@ -3,13 +3,12 @@
 
 from __future__ import annotations
 
-import ml._bootstrap  # noqa: F401
-
 import argparse
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
+import ml._bootstrap  # noqa: F401
 from ml.common import (
     LABEL_GOOGLE,
     LABEL_NAMES,

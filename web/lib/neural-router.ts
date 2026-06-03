@@ -33,7 +33,7 @@ export function modelTimeoutMs(): number {
 const ONNXRUNTIME_WEB_VERSION = "1.22.0-dev.20250409-89f8206ba4";
 
 function configureServerOnnxWasm(
-  env: Awaited<typeof import("./neural-router-runtime")>["env"]
+  env: Awaited<ReturnType<typeof import("./neural-router-runtime").loadNeuralRuntime>>["env"]
 ): void {
   const wasm = env.backends.onnx.wasm;
   if (!wasm) return;
@@ -45,7 +45,9 @@ function configureServerOnnxWasm(
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
-      const { env, pipeline } = await import("./neural-router-runtime");
+      const { env, pipeline } = await (
+        await import("./neural-router-runtime")
+      ).loadNeuralRuntime();
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";

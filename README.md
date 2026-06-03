@@ -120,6 +120,24 @@ Expected behavior:
 - Neural routing is available for debugging at `/api/route?q=%s&mode=model`, but it is too slow for address-bar use on serverless cold starts.
 - The browser UI still runs the downloaded INT8 ONNX model locally after the app loads.
 
+### Optional Chromium extension
+
+For the fastest address-bar experience, load the unpacked extension in `extension/chromium`. The extension intercepts the same custom search URL locally, classifies the query in the browser, and redirects the active tab without waiting for Vercel.
+
+Install:
+
+```text
+1. Open chrome://extensions or comet://extensions.
+2. Enable Developer mode.
+3. Click "Load unpacked".
+4. Select extension/chromium.
+5. Keep the search engine URL as https://jiehuo.vercel.app/search?q=%s.
+```
+
+The extension also registers the `jh` omnibox keyword, so `jh compare Perplexity and Google` routes directly even if the custom search engine setting is not active.
+
+Current extension routing is heuristic-only for speed and reliability. The neural ONNX model still runs in the JieHuo web UI; running that model inside a Manifest V3 extension should use an offscreen document so WASM/model lifetime is not tied to the service worker.
+
 Or run the full training pipeline (requires `OPENAI_API_KEY`):
 
 ```bash

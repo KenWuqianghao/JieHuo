@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "JieHuo Router",
+  "version": "0.1.0",
+  "description": "Routes address-bar searches to Google or Perplexity locally.",
+  "permissions": ["storage", "tabs", "webNavigation"],
+  "host_permissions": ["https://jiehuo.vercel.app/*"],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "JieHuo Router"
+  },
+  "options_page": "options.html",
+  "omnibox": {
+    "keyword": "jh"
+  }
+}

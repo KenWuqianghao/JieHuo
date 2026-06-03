@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>JieHuo Router</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="popup">
+    <main>
+      <header>
+        <h1>JieHuo</h1>
+        <label class="switch">
+          <input id="enabled" type="checkbox" />
+          <span></span>
+        </label>
+      </header>
+      <section>
+        <div class="label">Last route</div>
+        <div id="last-route" class="route">No routes yet</div>
+      </section>
+      <form id="preview-form">
+        <label for="query">Preview</label>
+        <div class="row">
+          <input id="query" name="query" placeholder="compare Perplexity and Google" />
+          <button type="submit">Route</button>
+        </div>
+      </form>
+      <div id="preview" class="preview"></div>
+      <a class="settings" href="options.html" target="_blank">Settings</a>
+    </main>
+    <script src="router.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

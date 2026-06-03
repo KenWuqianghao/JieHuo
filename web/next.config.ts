@@ -23,7 +23,6 @@ const routeTraceExcludes = [
 ];
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["onnxruntime-web", "onnxruntime-common"],
   outputFileTracingRoot: path.join(__dirname),
   outputFileTracingIncludes: {
     "/search": routeTraceIncludes,

@@ -171,7 +171,7 @@ JIEHUO_MODEL_REPO=KenWu/multilingual-query-router
 JIEHUO_MODEL_TIMEOUT_MS=25000
 ```
 
-Server routes use the WASM build of transformers.js (not `onnxruntime-node`) so Vercel bundles stay under the 250 MB limit. Increase `JIEHUO_MODEL_TIMEOUT_MS` on cold starts if needed.
+On **Vercel**, set `HF_TOKEN` (read access) so `/search` and `/api/route` call the [Hugging Face Inference API](https://huggingface.co/KenWu/multilingual-query-router) for the same exported ONNX model—this avoids bundling `onnxruntime-node` (250 MB limit). Local `next dev` / self-hosted runs use WASM transformers.js in-process. Increase `JIEHUO_MODEL_TIMEOUT_MS` if cold starts are slow.
 
 ## Launch
 

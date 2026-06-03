@@ -3,7 +3,9 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 
 const ORT_SYMBOL = Symbol.for("onnxruntime");
-if (!(ORT_SYMBOL in globalThis)) {
+
+function installOnnxWebGlobal(): void {
+  if (ORT_SYMBOL in globalThis) return;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const ort = require("onnxruntime-web");
   const onnx = ort as { default?: unknown };
@@ -17,7 +19,10 @@ let runtimePromise: Promise<TransformersWeb> | null = null;
 /** Dynamic import avoids hoisting transformers before ONNX is registered. */
 export function loadNeuralRuntime(): Promise<TransformersWeb> {
   if (!runtimePromise) {
-    runtimePromise = import("@huggingface/transformers");
+    runtimePromise = (async () => {
+      installOnnxWebGlobal();
+      return import("@huggingface/transformers");
+    })();
   }
   return runtimePromise;
 }

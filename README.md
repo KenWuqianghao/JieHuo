@@ -100,6 +100,24 @@ Open `http://localhost:3000`.
 
 **Live demo:** [jiehuo.vercel.app](https://jiehuo.vercel.app)
 
+## Use as a Comet/Chromium search engine
+
+JieHuo can take over the browser address bar through a custom search engine URL. It classifies the query server-side, then immediately redirects to Google or Perplexity.
+
+In `comet://settings/searchEngines` or Chromium search engine settings, add:
+
+```text
+Name: JieHuo
+Shortcut: jh
+URL: https://jiehuo.vercel.app/search?q=%s
+```
+
+Expected behavior:
+
+- Navigational, local, realtime, and transactional queries go to Google.
+- Research, comparison, explanation, and synthesis queries go to Perplexity.
+- If the neural router is cold or unavailable, JieHuo falls back to deterministic heuristics instead of failing the search.
+
 Or run the full training pipeline (requires `OPENAI_API_KEY`):
 
 ```bash
@@ -148,7 +166,12 @@ Then configure:
 
 ```text
 NEXT_PUBLIC_MODEL_REPO=KenWu/multilingual-query-router
+JIEHUO_MODEL_REPO=KenWu/multilingual-query-router
+JIEHUO_MODEL_TIMEOUT_MS=2500
+JIEHUO_ROUTER_MODE=model
 ```
+
+`JIEHUO_ROUTER_MODE=heuristic` is an emergency fallback that keeps `/search?q=%s` working without model inference.
 
 ## Launch
 

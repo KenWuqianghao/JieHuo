@@ -152,7 +152,7 @@ NEXT_PUBLIC_MODEL_REPO=KenWu/multilingual-query-router
 
 - Live demo: https://jiehuo.vercel.app
 - Twitter/X copy: `docs/twitter-launch.md`
-- Social card: `assets/jiehuo-twitter-card.png`
+- Link preview image: `web/app/opengraph-image.png` (1200×630, `summary_large_image` on X)
 - Regenerate the card: `.venv/bin/python scripts/make_social_card.py`
 
 ## Feedback loop

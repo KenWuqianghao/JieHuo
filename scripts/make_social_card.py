@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate a Twitter-ready JieHuo metric card."""
+"""Generate Open Graph / Twitter card image for JieHuo."""
 
 from __future__ import annotations
 
@@ -10,67 +10,103 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS_DIR = ROOT / "assets"
 OUT = ASSETS_DIR / "jiehuo-twitter-card.png"
+WEB_OG = ROOT / "web" / "app" / "opengraph-image.png"
+
+# Site palette (web/app/globals.css)
+CANVAS = "#faf8f5"
+INK = "#271a00"
+INK_SECONDARY = "#72706b"
+TEAL = "#016a71"
+TEAL_SOFT = "#ddf6f8"
+GOOGLE = "#1a73e8"
+WHITE = "#ffffff"
 
 
-def font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    candidates = [
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/System/Library/Fonts/Supplemental/Helvetica Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Helvetica.ttf",
-        "/Library/Fonts/Arial Bold.ttf" if bold else "/Library/Fonts/Arial.ttf",
-    ]
+def font(size: int, bold: bool = False, cn: bool = False) -> ImageFont.FreeTypeFont:
+    if cn:
+        candidates = [
+            "/System/Library/Fonts/Supplemental/Songti.ttc",
+            "/System/Library/Fonts/STHeiti Medium.ttc",
+            "/Library/Fonts/Arial Unicode.ttf",
+        ]
+    elif bold:
+        candidates = [
+            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+            "/Library/Fonts/Arial Bold.ttf",
+        ]
+    else:
+        candidates = [
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/Library/Fonts/Arial.ttf",
+        ]
     for candidate in candidates:
-        if candidate and Path(candidate).exists():
+        if Path(candidate).exists():
             return ImageFont.truetype(candidate, size)
     return ImageFont.load_default(size=size)
 
 
-def rounded(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], radius: int, fill: str, outline: str | None = None) -> None:
-    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2 if outline else 1)
+def rounded(
+    draw: ImageDraw.ImageDraw,
+    box: tuple[int, int, int, int],
+    radius: int,
+    fill: str,
+    outline: str | None = None,
+) -> None:
+    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=2 if outline else 0)
 
 
 def main() -> None:
     ASSETS_DIR.mkdir(exist_ok=True)
-    width, height = 1600, 900
-    img = Image.new("RGB", (width, height), "#f7f5ef")
+    width, height = 1200, 630  # 1.91:1 — ideal for X / Open Graph
+    img = Image.new("RGB", (width, height), CANVAS)
+    overlay = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    ov_draw = ImageDraw.Draw(overlay)
+    for y in range(260):
+        t = 1 - y / 260
+        ov_draw.rectangle((0, y, width, y + 1), fill=(1, 106, 113, int(16 * t)))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay).convert("RGB")
     draw = ImageDraw.Draw(img)
 
-    # Structured, presentation-like background.
-    draw.rectangle((0, 0, width, 130), fill="#111827")
-    draw.rectangle((0, 130, width, height), fill="#f7f5ef")
-    draw.rectangle((0, height - 110, width, height), fill="#e7efe9")
+    # Header bar
+    rounded(draw, (48, 48, width - 48, 148), 20, TEAL)
+    draw.text((80, 72), "\u89e3\u60d1", fill=WHITE, font=font(52, cn=True))
+    draw.text((210, 78), "JieHuo", fill=WHITE, font=font(44, bold=True))
+    draw.text((210, 118), "Multilingual Google vs Perplexity router", fill=TEAL_SOFT, font=font(22))
 
-    draw.text((72, 42), "JieHuo", fill="#ffffff", font=font(54, True))
-    draw.text((302, 56), "12-language Google vs Perplexity router", fill="#d1d5db", font=font(30))
-
-    draw.text((72, 180), "Browser-runnable search routing", fill="#111827", font=font(64, True))
+    draw.text((80, 196), "Route every query to the right search engine", fill=INK, font=font(46, bold=True))
     draw.text(
-        (72, 260),
-        "GPT-4.1-mini teacher-distilled -> multilingual-e5-small -> calibrated INT8 ONNX",
-        fill="#374151",
-        font=font(31),
+        (80, 258),
+        "Runs in your browser · GPT-4.1-mini distilled · INT8 ONNX · 12 languages",
+        fill=INK_SECONDARY,
+        font=font(24),
     )
 
     cards = [
-        ("Balanced gold", "0.883", "macro F1", "full coverage"),
-        ("Auto-route", "0.911", "macro F1", "88.8% coverage"),
-        ("High confidence", "0.962", "macro F1", "56.7% coverage"),
+        ("Balanced gold", "0.883", "macro F1 · full coverage"),
+        ("Auto-route", "0.911", "macro F1 · 89% coverage"),
+        ("High confidence", "0.962", "macro F1 · 57% coverage"),
     ]
-    x = 72
-    for title, value, metric, caption in cards:
-        rounded(draw, (x, 360, x + 460, 640), 20, "#ffffff", "#d1d5db")
-        draw.text((x + 34, 394), title, fill="#374151", font=font(28, True))
-        draw.text((x + 34, 452), value, fill="#0f766e", font=font(84, True))
-        draw.text((x + 260, 490), metric, fill="#111827", font=font(32, True))
-        draw.text((x + 34, 568), caption, fill="#4b5563", font=font(30))
-        x += 500
+    x = 80
+    for title, value, caption in cards:
+        rounded(draw, (x, 310, x + 340, 500), 16, WHITE, "#e8e4dc")
+        draw.rectangle((x + 24, 334, x + 52, 342), fill=TEAL)
+        draw.text((x + 24, 352), title, fill=INK_SECONDARY, font=font(20, bold=True))
+        draw.text((x + 24, 392), value, fill=TEAL, font=font(58, bold=True))
+        draw.text((x + 24, 458), caption, fill=INK_SECONDARY, font=font(20))
+        x += 360
 
-    draw.text((72, 704), "Runs locally in the browser with transformers.js", fill="#111827", font=font(34, True))
-    draw.text((72, 752), "Model: KenWu/multilingual-query-router on Hugging Face", fill="#374151", font=font(28))
-    draw.text((72, 826), "github.com/KenWuqianghao/JieHuo", fill="#111827", font=font(30, True))
-    draw.text((1060, 826), "HF: KenWu/multilingual-router", fill="#111827", font=font(26, True))
+    # Route chips
+    rounded(draw, (80, 530, 310, 582), 999, "#e8f1fc")
+    draw.text((108, 544), "Google", fill=GOOGLE, font=font(22, bold=True))
+    rounded(draw, (330, 530, 560, 582), 999, TEAL_SOFT)
+    draw.text((352, 544), "Perplexity", fill=TEAL, font=font(22, bold=True))
+    draw.text((590, 544), "jiehuo.vercel.app", fill=INK, font=font(22, bold=True))
 
-    img.save(OUT, quality=95)
-    print(OUT)
+    img.save(OUT, quality=92)
+    WEB_OG.parent.mkdir(parents=True, exist_ok=True)
+    img.save(WEB_OG, quality=92)
+    print(f"Wrote {OUT}")
+    print(f"Wrote {WEB_OG}")
 
 
 if __name__ == "__main__":

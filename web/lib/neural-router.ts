@@ -1,6 +1,3 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { normalizeModelLabel } from "./heuristics";
 import type { ClassificationResult, RouteLabel } from "./heuristics";
 
@@ -33,33 +30,11 @@ export function modelTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
-function transformersWebBundlePath(): string {
-  const roots = [process.cwd(), path.join(process.cwd(), "web")];
-  for (const root of roots) {
-    const candidate = path.join(
-      root,
-      "node_modules",
-      "@huggingface",
-      "transformers",
-      "dist",
-      "transformers.web.js"
-    );
-    if (existsSync(candidate)) return candidate;
-  }
-  throw new Error(`Missing transformers.web.js (cwd=${process.cwd()})`);
-}
-
-async function loadTransformers() {
-  const bundleUrl = pathToFileURL(transformersWebBundlePath()).href;
-  return import(/* webpackIgnore: true */ bundleUrl) as Promise<
-    typeof import("@huggingface/transformers")
-  >;
-}
-
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
-      const { pipeline, env } = await loadTransformers();
+      // Bundled as transformers.web.js on the server (see next.config.ts alias).
+      const { pipeline, env } = await import("@huggingface/transformers");
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";

@@ -4,10 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { QueryClassifier, type ClassifierStatus } from "@/lib/classifier";
 import {
   buildSearchUrls,
-  explainHeuristics,
   resultFromHeuristics,
   type ClassificationResult,
-  type HeuristicExplanation,
   type InferenceSource,
 } from "@/lib/heuristics";
 
@@ -30,7 +28,6 @@ export default function Home() {
   const [status, setStatus] = useState<ClassifierStatus>("idle");
   const [modelError, setModelError] = useState<string | null>(null);
   const [result, setResult] = useState<ClassificationResult | null>(null);
-  const [heuristics, setHeuristics] = useState<HeuristicExplanation | null>(null);
   const [feedbackSent, setFeedbackSent] = useState<"up" | "down" | null>(null);
   const classifierRef = useRef<QueryClassifier | null>(null);
   const modelReadyRef = useRef(false);
@@ -52,11 +49,9 @@ export default function Home() {
   const classify = useCallback(async (q: string) => {
     if (!q.trim()) {
       setResult(null);
-      setHeuristics(null);
       return;
     }
 
-    setHeuristics(explainHeuristics(q));
     setFeedbackSent(null);
 
     if (modelError || (!modelReadyRef.current && status === "error")) {
@@ -100,7 +95,6 @@ export default function Home() {
 
   const urls = query.trim() ? buildSearchUrls(query) : null;
   const pct = result ? Math.round(result.confidence * 100) : 0;
-  const usingNeural = result?.source === "neural";
 
   return (
     <main>
@@ -174,21 +168,6 @@ export default function Home() {
             </>
           ) : (
             <p className="classifying">Classifying…</p>
-          )}
-
-          {heuristics && (
-            <div className="explain">
-              <div className="explain-title">
-                Rule-based signals {usingNeural ? "(reference only — not used for routing)" : "(used for routing)"}
-              </div>
-              <div className="explain-tags">
-                {heuristics.reasons.map((r) => (
-                  <span key={r} className="tag">
-                    {r}
-                  </span>
-                ))}
-              </div>
-            </div>
           )}
 
           <div className="actions">

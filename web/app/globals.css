@@ -291,39 +291,6 @@ h1,
   font-size: 0.9375rem;
 }
 
-/* ── Explain ── */
-
-.explain {
-  margin-top: 1.125rem;
-  padding-top: 1.125rem;
-  border-top: 1px solid var(--border);
-}
-
-.explain-title {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: var(--ink-muted);
-  margin-bottom: 0.625rem;
-}
-
-.explain-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-.tag {
-  font-size: 0.75rem;
-  font-weight: 500;
-  padding: 0.25rem 0.5625rem;
-  background: var(--surface-muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--ink-secondary);
-}
-
 /* ── Actions ── */
 
 .actions {

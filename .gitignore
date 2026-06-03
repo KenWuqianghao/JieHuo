@@ -23,6 +23,7 @@ data/gold/
 # Env
 .env
 .env.local
+!.env.example
 
 # Node
 web/node_modules/
@@ -30,6 +31,8 @@ web/.next/
 web/out/
 web/.vercel/
 
-# OS
+# OS / local
 .DS_Store
 *.log
+logs/
+.vercel

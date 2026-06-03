@@ -98,6 +98,14 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+**Live demo:** [jiehuo.vercel.app](https://jiehuo.vercel.app)
+
+Or run the full training pipeline (requires `OPENAI_API_KEY`):
+
+```bash
+bash scripts/run_pipeline.sh
+```
+
 ## Pipeline
 
 ```text
@@ -140,8 +148,9 @@ Then configure:
 NEXT_PUBLIC_MODEL_REPO=KenWu/multilingual-query-router
 ```
 
-## Launch assets
+## Launch
 
+- Live demo: https://jiehuo.vercel.app
 - Twitter/X copy: `docs/twitter-launch.md`
 - Social card: `assets/jiehuo-twitter-card.png`
 - Regenerate the card: `.venv/bin/python scripts/make_social_card.py`

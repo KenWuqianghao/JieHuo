@@ -1,3 +1,4 @@
+import { env, pipeline } from "@huggingface/transformers";
 import { normalizeModelLabel } from "./heuristics";
 import type { ClassificationResult, RouteLabel } from "./heuristics";
 
@@ -33,8 +34,6 @@ export function modelTimeoutMs(): number {
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
-      // Bundled as transformers.web.js on the server (see next.config.ts alias).
-      const { pipeline, env } = await import("@huggingface/transformers");
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";

@@ -1,5 +1,6 @@
-import { buildSearchUrls, resultFromHeuristics } from "./heuristics";
+import { buildSearchUrls } from "./heuristics";
 import type { ClassificationResult, RouteLabel } from "./heuristics";
+import { classifyWithNeuralModelTimed } from "./neural-router";
 
 const MAX_QUERY_LENGTH = 500;
 
@@ -16,13 +17,8 @@ export function targetUrlForLabel(label: RouteLabel, query: string): string {
   return buildSearchUrls(query)[label];
 }
 
-/**
- * Server-side routing for /search and /api/route.
- * Uses heuristics only so Vercel serverless functions stay under the 250 MB limit.
- * The browser UI still runs the INT8 neural model in a Web Worker.
- */
 export async function routeSearchQuery(query: string): Promise<RoutedSearch> {
-  const result = resultFromHeuristics(query);
+  const result = await classifyWithNeuralModelTimed(query);
 
   return {
     ...result,

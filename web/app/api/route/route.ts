@@ -3,7 +3,7 @@ import { routeSearchQuery, sanitizeSearchQuery } from "@/lib/server-router";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 10;
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
   const rawQuery =
@@ -14,8 +14,16 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing required query parameter: q" }, { status: 400 });
   }
 
-  const routed = await routeSearchQuery(query);
-  return NextResponse.json(routed, {
-    headers: { "Cache-Control": "no-store" },
-  });
+  try {
+    const routed = await routeSearchQuery(query);
+    return NextResponse.json(routed, {
+      headers: { "Cache-Control": "no-store" },
+    });
+  } catch (err) {
+    console.error("JieHuo /api/route failed:", err);
+    return NextResponse.json(
+      { error: "Model routing unavailable", detail: err instanceof Error ? err.message : String(err) },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 }

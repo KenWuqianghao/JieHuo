@@ -102,7 +102,7 @@ Open `http://localhost:3000`.
 
 ## Use as a Comet/Chromium search engine
 
-JieHuo can take over the browser address bar through a custom search engine URL. The `/search` endpoint classifies the query server-side with fast heuristics, then immediately redirects to Google or Perplexity.
+JieHuo can take over the browser address bar through a custom search engine URL. The `/search` endpoint runs the same INT8 neural router server-side (WASM), then immediately redirects to Google or Perplexity.
 
 In `comet://settings/searchEngines` or Chromium search engine settings, add:
 
@@ -117,7 +117,7 @@ Expected behavior:
 - Navigational, local, realtime, and transactional queries go to Google.
 - Research, comparison, explanation, and synthesis queries go to Perplexity.
 - JSON routing metadata is available at `/api/route?q=%s`.
-- The web UI at `/` still uses the INT8 neural model in the browser; `/search` stays lightweight for Vercel serverless limits.
+- First `/search` request may be slow while the model warms up (~113 MB download to `/tmp`).
 
 Or run the full training pipeline (requires `OPENAI_API_KEY`):
 
@@ -167,9 +167,11 @@ Then configure:
 
 ```text
 NEXT_PUBLIC_MODEL_REPO=KenWu/multilingual-query-router
+JIEHUO_MODEL_REPO=KenWu/multilingual-query-router
+JIEHUO_MODEL_TIMEOUT_MS=25000
 ```
 
-`NEXT_PUBLIC_MODEL_REPO` powers the browser UI only. `/search` and `/api/route` use heuristics so serverless bundles stay under Vercel’s 250 MB limit.
+Server routes use the WASM build of transformers.js (not `onnxruntime-node`) so Vercel bundles stay under the 250 MB limit. Increase `JIEHUO_MODEL_TIMEOUT_MS` on cold starts if needed.
 
 ## Launch
 

@@ -1,14 +1,45 @@
 import type { NextConfig } from "next";
 import path from "path";
 
+const transformersWeb = path.join(
+  __dirname,
+  "node_modules/@huggingface/transformers/dist/transformers.web.js"
+);
+
+const onnxNodeExclude = "./node_modules/onnxruntime-node/**/*";
+const sharpExclude = [
+  "./node_modules/@img/sharp-darwin-arm64/**/*",
+  "./node_modules/@img/sharp-darwin-x64/**/*",
+  "./node_modules/@img/sharp-libvips-darwin-arm64/**/*",
+  "./node_modules/@img/sharp-libvips-darwin-x64/**/*",
+  "./node_modules/@img/sharp-linux-arm64/**/*",
+  "./node_modules/@img/sharp-linuxmusl-arm64/**/*",
+  "./node_modules/@img/sharp-win32-ia32/**/*",
+  "./node_modules/@img/sharp-win32-x64/**/*",
+];
+
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      sharp$: false,
-      "onnxruntime-node$": false,
-    };
+  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-web"],
+  outputFileTracingExcludes: {
+    "/search": [onnxNodeExclude, ...sharpExclude],
+    "/api/route": [onnxNodeExclude, ...sharpExclude],
+  },
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@huggingface/transformers$": transformersWeb,
+        "onnxruntime-node$": false,
+        sharp$: false,
+      };
+    } else {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        sharp$: false,
+        "onnxruntime-node$": false,
+      };
+    }
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,

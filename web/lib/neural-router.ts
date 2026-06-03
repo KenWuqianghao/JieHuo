@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { normalizeModelLabel } from "./heuristics";
@@ -5,7 +6,7 @@ import type { ClassificationResult, RouteLabel } from "./heuristics";
 
 const E5_PREFIX = "query: ";
 const DEFAULT_MODEL_REPO = "KenWu/multilingual-query-router";
-const DEFAULT_TIMEOUT_MS = 2500;
+const DEFAULT_TIMEOUT_MS = 30000;
 
 type PipelineFn = (
   text: string,
@@ -33,14 +34,19 @@ export function modelTimeoutMs(): number {
 }
 
 function transformersWebBundlePath(): string {
-  return path.join(
-    process.cwd(),
-    "node_modules",
-    "@huggingface",
-    "transformers",
-    "dist",
-    "transformers.web.js"
-  );
+  const roots = [process.cwd(), path.join(process.cwd(), "web")];
+  for (const root of roots) {
+    const candidate = path.join(
+      root,
+      "node_modules",
+      "@huggingface",
+      "transformers",
+      "dist",
+      "transformers.web.js"
+    );
+    if (existsSync(candidate)) return candidate;
+  }
+  throw new Error(`Missing transformers.web.js (cwd=${process.cwd()})`);
 }
 
 async function loadTransformers() {

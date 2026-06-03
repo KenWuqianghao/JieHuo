@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/patch-transformers-node-export.mjs && next build",
+    "postinstall": "node scripts/patch-transformers-node-export.mjs",
     "start": "next start",
     "lint": "next lint"
   },

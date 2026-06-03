@@ -40,6 +40,8 @@ const nextConfig: NextConfig = {
       config.resolve.alias = {
         ...config.resolve.alias,
         "@huggingface/transformers$": transformersWeb,
+        "@huggingface/transformers/dist/transformers.node.mjs": transformersWeb,
+        "@huggingface/transformers/dist/transformers.node.cjs": transformersWeb,
         "onnxruntime-node$": false,
         sharp$: false,
       };

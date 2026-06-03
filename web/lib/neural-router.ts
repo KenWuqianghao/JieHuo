@@ -1,4 +1,3 @@
-import { env, pipeline } from "@huggingface/transformers";
 import { normalizeModelLabel } from "./heuristics";
 import type { ClassificationResult, RouteLabel } from "./heuristics";
 
@@ -34,6 +33,7 @@ export function modelTimeoutMs(): number {
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
+      const { env, pipeline } = await import("./neural-router-runtime");
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";

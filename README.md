@@ -132,6 +132,8 @@ ml/09_upload_hf.py           -> optional Hugging Face model repo
 
 ## Deployment note
 
+Deploy the **Next.js app in `web/`**, not the repository root. On Vercel (Git integration), set **Root Directory** to `web` — otherwise `npm install` fails looking for a root `package.json`.
+
 The exported INT8 ONNX model is published on Hugging Face:
 
 [https://huggingface.co/KenWu/multilingual-query-router](https://huggingface.co/KenWu/multilingual-query-router)

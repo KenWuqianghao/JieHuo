@@ -4,6 +4,8 @@ import path from "path";
 /** Keep Vercel serverless bundles under the 250 MB limit (see transformers.js #1164). */
 const routeTraceIncludes = [
   "./node_modules/@huggingface/transformers/dist/transformers.web.js",
+  "./node_modules/onnxruntime-web/**/*",
+  "./node_modules/onnxruntime-common/**/*",
 ];
 
 const routeTraceExcludes = [
@@ -21,6 +23,7 @@ const routeTraceExcludes = [
 ];
 
 const nextConfig: NextConfig = {
+  serverExternalPackages: ["onnxruntime-web", "onnxruntime-common"],
   outputFileTracingRoot: path.join(__dirname),
   outputFileTracingIncludes: {
     "/search": routeTraceIncludes,

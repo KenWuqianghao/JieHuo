@@ -1,3 +1,5 @@
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { normalizeModelLabel } from "./heuristics";
 import type { ClassificationResult, RouteLabel } from "./heuristics";
 
@@ -30,11 +32,28 @@ export function modelTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
+function transformersWebBundlePath(): string {
+  return path.join(
+    process.cwd(),
+    "node_modules",
+    "@huggingface",
+    "transformers",
+    "dist",
+    "transformers.web.js"
+  );
+}
+
+async function loadTransformers() {
+  const bundleUrl = pathToFileURL(transformersWebBundlePath()).href;
+  return import(/* webpackIgnore: true */ bundleUrl) as Promise<
+    typeof import("@huggingface/transformers")
+  >;
+}
+
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
-      // Resolved to transformers.web.js on the server via next.config alias (WASM, not onnxruntime-node).
-      const { pipeline, env } = await import("@huggingface/transformers");
+      const { pipeline, env } = await loadTransformers();
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";

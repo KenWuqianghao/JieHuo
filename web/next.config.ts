@@ -7,6 +7,12 @@ const transformersWeb = path.join(
 );
 
 const onnxNodeExclude = "./node_modules/onnxruntime-node/**/*";
+const wasmRuntimeInclude = [
+  "./node_modules/@huggingface/transformers/dist/transformers.web.js",
+  "./node_modules/@huggingface/transformers/dist/*.wasm",
+  "./node_modules/onnxruntime-web/dist/**/*",
+  "./node_modules/onnxruntime-common/**/*",
+];
 const sharpExclude = [
   "./node_modules/@img/sharp-darwin-arm64/**/*",
   "./node_modules/@img/sharp-darwin-x64/**/*",
@@ -20,7 +26,11 @@ const sharpExclude = [
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
-  serverExternalPackages: ["@huggingface/transformers", "onnxruntime-web"],
+  // Do not externalize @huggingface/transformers — Node "exports" would load transformers.node.mjs + onnxruntime-node.
+  outputFileTracingIncludes: {
+    "/search": wasmRuntimeInclude,
+    "/api/route": wasmRuntimeInclude,
+  },
   outputFileTracingExcludes: {
     "/search": [onnxNodeExclude, ...sharpExclude],
     "/api/route": [onnxNodeExclude, ...sharpExclude],

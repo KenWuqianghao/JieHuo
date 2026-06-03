@@ -102,7 +102,7 @@ Open `http://localhost:3000`.
 
 ## Use as a Comet/Chromium search engine
 
-JieHuo can take over the browser address bar through a custom search engine URL. The `/search` endpoint runs the same INT8 neural router server-side (WASM), then immediately redirects to Google or Perplexity.
+JieHuo can take over the browser address bar through a custom search engine URL. The `/search` endpoint uses a fast deterministic router by default, then immediately redirects to Google or Perplexity.
 
 In `comet://settings/searchEngines` or Chromium search engine settings, add:
 
@@ -117,7 +117,8 @@ Expected behavior:
 - Navigational, local, realtime, and transactional queries go to Google.
 - Research, comparison, explanation, and synthesis queries go to Perplexity.
 - JSON routing metadata is available at `/api/route?q=%s`.
-- First `/search` request may be slow while the model warms up (~113 MB download to `/tmp`).
+- Neural routing is available for debugging at `/api/route?q=%s&mode=model`, but it is too slow for address-bar use on serverless cold starts.
+- The browser UI still runs the downloaded INT8 ONNX model locally after the app loads.
 
 Or run the full training pipeline (requires `OPENAI_API_KEY`):
 
@@ -169,9 +170,10 @@ Then configure:
 NEXT_PUBLIC_MODEL_REPO=KenWu/multilingual-query-router
 JIEHUO_MODEL_REPO=KenWu/multilingual-query-router
 JIEHUO_MODEL_TIMEOUT_MS=25000
+JIEHUO_ROUTER_MODE=heuristic
 ```
 
-On **Vercel**, set `HF_TOKEN` (read access) so `/search` and `/api/route` call the [Hugging Face Inference API](https://huggingface.co/KenWu/multilingual-query-router) for the same exported ONNX model—this avoids bundling `onnxruntime-node` (250 MB limit). Local `next dev` / self-hosted runs use WASM transformers.js in-process. Increase `JIEHUO_MODEL_TIMEOUT_MS` if cold starts are slow.
+On **Vercel**, keep `/search` heuristic-first for speed. If you want `/api/route?mode=model` for debugging, set `HF_TOKEN` (read access) so the server can call the [Hugging Face Inference API](https://huggingface.co/KenWu/multilingual-query-router). Local `next dev` / self-hosted runs can use WASM transformers.js in-process, but cold starts are not suitable for address-bar redirects.
 
 ## Launch
 

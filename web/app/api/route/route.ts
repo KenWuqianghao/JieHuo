@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RoutingMode } from "@/lib/server-router";
 import { routeSearchQuery, sanitizeSearchQuery } from "@/lib/server-router";
 
 export const runtime = "nodejs";
@@ -9,21 +10,15 @@ export async function GET(request: NextRequest) {
   const rawQuery =
     request.nextUrl.searchParams.get("q") ?? request.nextUrl.searchParams.get("query");
   const query = sanitizeSearchQuery(rawQuery);
+  const modeParam = request.nextUrl.searchParams.get("mode");
+  const mode: RoutingMode = modeParam === "model" ? "model" : "heuristic";
 
   if (!query) {
     return NextResponse.json({ error: "Missing required query parameter: q" }, { status: 400 });
   }
 
-  try {
-    const routed = await routeSearchQuery(query);
-    return NextResponse.json(routed, {
-      headers: { "Cache-Control": "no-store" },
-    });
-  } catch (err) {
-    console.error("JieHuo /api/route failed:", err);
-    return NextResponse.json(
-      { error: "Model routing unavailable", detail: err instanceof Error ? err.message : String(err) },
-      { status: 503, headers: { "Cache-Control": "no-store" } }
-    );
-  }
+  const routed = await routeSearchQuery(query, mode);
+  return NextResponse.json(routed, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

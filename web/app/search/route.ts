@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { RoutingMode } from "@/lib/server-router";
 import { routeSearchQuery, sanitizeSearchQuery } from "@/lib/server-router";
 
 export const runtime = "nodejs";
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
   const rawQuery =
     request.nextUrl.searchParams.get("q") ?? request.nextUrl.searchParams.get("query");
   const query = sanitizeSearchQuery(rawQuery);
+  const mode: RoutingMode =
+    request.nextUrl.searchParams.get("mode") === "model" ? "model" : "heuristic";
 
   if (!query) {
     return NextResponse.redirect(new URL("/", request.url), {
@@ -17,17 +20,9 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  try {
-    const routed = await routeSearchQuery(query);
-    return NextResponse.redirect(routed.targetUrl, {
-      status: 302,
-      headers: { "Cache-Control": "no-store" },
-    });
-  } catch (err) {
-    console.error("JieHuo /search route failed:", err);
-    return NextResponse.json(
-      { error: "Model routing unavailable", detail: err instanceof Error ? err.message : String(err) },
-      { status: 503, headers: { "Cache-Control": "no-store" } }
-    );
-  }
+  const routed = await routeSearchQuery(query, mode);
+  return NextResponse.redirect(routed.targetUrl, {
+    status: 302,
+    headers: { "Cache-Control": "no-store" },
+  });
 }

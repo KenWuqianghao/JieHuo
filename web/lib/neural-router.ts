@@ -30,6 +30,18 @@ export function modelTimeoutMs(): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_TIMEOUT_MS;
 }
 
+const ONNXRUNTIME_WEB_VERSION = "1.22.0-dev.20250409-89f8206ba4";
+
+function configureServerOnnxWasm(
+  env: Awaited<typeof import("./neural-router-runtime")>["env"]
+): void {
+  const wasm = env.backends.onnx.wasm;
+  if (!wasm) return;
+  wasm.wasmPaths = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNXRUNTIME_WEB_VERSION}/dist/`;
+  wasm.proxy = false;
+  wasm.numThreads = 1;
+}
+
 async function getClassifier(): Promise<PipelineFn> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
@@ -37,6 +49,7 @@ async function getClassifier(): Promise<PipelineFn> {
       env.allowRemoteModels = true;
       env.allowLocalModels = false;
       env.cacheDir = process.env.JIEHUO_CACHE_DIR || "/tmp/jiehuo-transformers";
+      configureServerOnnxWasm(env);
 
       const createTextClassifier = pipeline as unknown as (
         task: "text-classification",

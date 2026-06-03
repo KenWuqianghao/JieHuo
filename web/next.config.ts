@@ -1,11 +1,10 @@
 import type { NextConfig } from "next";
 import path from "path";
 
-const onnxPlatformExcludes = [
-  "./node_modules/onnxruntime-node/bin/napi-v3/darwin/**/*",
-  "./node_modules/onnxruntime-node/bin/napi-v3/win32/**/*",
-  "./node_modules/onnxruntime-node/bin/napi-v3/linux/arm64/**/*",
-  "./node_modules/onnxruntime-node/bin/napi-v3/linux/arm/**/*",
+/** Keep Vercel serverless bundles under the 250 MB limit (see transformers.js #1164). */
+const routeTraceExcludes = [
+  "./node_modules/onnxruntime-node/**/*",
+  "./node_modules/onnxruntime-node/bin/**/*",
   "./node_modules/@img/sharp-darwin-arm64/**/*",
   "./node_modules/@img/sharp-darwin-x64/**/*",
   "./node_modules/@img/sharp-libvips-darwin-arm64/**/*",
@@ -14,21 +13,26 @@ const onnxPlatformExcludes = [
   "./node_modules/@img/sharp-linuxmusl-arm64/**/*",
   "./node_modules/@img/sharp-win32-ia32/**/*",
   "./node_modules/@img/sharp-win32-x64/**/*",
+  "./node_modules/sharp/**/*",
 ];
 
 const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname),
   outputFileTracingExcludes: {
-    "/search": onnxPlatformExcludes,
-    "/api/route": onnxPlatformExcludes,
+    "/search": routeTraceExcludes,
+    "/api/route": routeTraceExcludes,
   },
   webpack: (config, { isServer }) => {
     config.resolve.alias = {
       ...config.resolve.alias,
       sharp$: false,
+      "onnxruntime-node$": false,
     };
-    if (!isServer) {
-      config.resolve.alias["onnxruntime-node$"] = false;
+    if (isServer) {
+      config.resolve.alias["@huggingface/transformers$"] = path.join(
+        __dirname,
+        "node_modules/@huggingface/transformers/dist/transformers.web.js"
+      );
     }
     config.experiments = {
       ...config.experiments,

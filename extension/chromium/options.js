@@ -15,10 +15,10 @@ async function loadSettings() {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await chrome.storage.sync.set({
+  await chrome.runtime.sendMessage({
+    target: "service_worker",
+    type: "setEnabled",
     enabled: enabled.checked,
-    interceptHost: DEFAULT_SETTINGS.interceptHost,
-    interceptPath: DEFAULT_SETTINGS.interceptPath,
   });
   status.textContent = "Saved";
 });

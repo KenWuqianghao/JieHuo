@@ -102,7 +102,7 @@ Open `http://localhost:3000`.
 
 ## Use as a Comet/Chromium search engine
 
-JieHuo can take over the browser address bar through a custom search engine URL. The `/search` endpoint uses a fast deterministic router by default, then immediately redirects to Google or Perplexity.
+JieHuo can take over the browser address bar through a custom search engine URL. For neural local routing, use the Chromium extension below; it catches the same URL before the network request reaches Vercel and classifies with the bundled ONNX model in your browser.
 
 In `comet://settings/searchEngines` or Chromium search engine settings, add:
 
@@ -117,12 +117,20 @@ Expected behavior:
 - Navigational, local, realtime, and transactional queries go to Google.
 - Research, comparison, explanation, and synthesis queries go to Perplexity.
 - JSON routing metadata is available at `/api/route?q=%s`.
-- Neural routing is available for debugging at `/api/route?q=%s&mode=model`, but it is too slow for address-bar use on serverless cold starts.
-- The browser UI still runs the downloaded INT8 ONNX model locally after the app loads.
+- Without the extension, `/search` still works as a server fallback, but the extension is the intended neural address-bar path.
+- The browser UI and the extension both run the INT8 ONNX model locally.
 
 ### Optional Chromium extension
 
-For the fastest address-bar experience, load the unpacked extension in `extension/chromium`. The extension intercepts the same custom search URL locally, classifies the query in the browser, and redirects the active tab without waiting for Vercel.
+For the fastest address-bar experience, build and load the unpacked extension in `extension/chromium/dist`. The extension redirects the custom search URL to a local extension page, classifies the query with the bundled ONNX model in the browser, and then opens Google or Perplexity without asking Vercel or Hugging Face to classify the query.
+
+Build:
+
+```bash
+cd extension/chromium
+npm install
+npm run build
+```
 
 Install:
 
@@ -130,13 +138,13 @@ Install:
 1. Open chrome://extensions or comet://extensions.
 2. Enable Developer mode.
 3. Click "Load unpacked".
-4. Select extension/chromium.
+4. Select extension/chromium/dist.
 5. Keep the search engine URL as https://jiehuo.vercel.app/search?q=%s.
 ```
 
 The extension also registers the `jh` omnibox keyword, so `jh compare Perplexity and Google` routes directly even if the custom search engine setting is not active.
 
-Current extension routing is heuristic-only for speed and reliability. The neural ONNX model still runs in the JieHuo web UI; running that model inside a Manifest V3 extension should use an offscreen document so WASM/model lifetime is not tied to the service worker.
+The extension is neural-only. It uses a Manifest V3 offscreen document to own transformers.js and the ONNX runtime, because service workers are not a good place to keep a large model warm. First use after browser startup can take time while the 129 MB INT8 model and WASM runtime initialize; later routes are local and much faster.
 
 Or run the full training pipeline (requires `OPENAI_API_KEY`):
 
@@ -191,7 +199,7 @@ JIEHUO_MODEL_TIMEOUT_MS=25000
 JIEHUO_ROUTER_MODE=heuristic
 ```
 
-On **Vercel**, keep `/search` heuristic-first for speed. If you want `/api/route?mode=model` for debugging, set `HF_TOKEN` (read access) so the server can call the [Hugging Face Inference API](https://huggingface.co/KenWu/multilingual-query-router). Local `next dev` / self-hosted runs can use WASM transformers.js in-process, but cold starts are not suitable for address-bar redirects.
+On **Vercel**, `/search` remains a speed-focused fallback for users without the extension. If you want `/api/route?mode=model` for debugging, set `HF_TOKEN` (read access) so the server can call the [Hugging Face Inference API](https://huggingface.co/KenWu/multilingual-query-router). Local `next dev` / self-hosted runs can use WASM transformers.js in-process, but cold starts are not suitable for address-bar redirects.
 
 ## Launch
 

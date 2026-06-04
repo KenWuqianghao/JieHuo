@@ -30,6 +30,8 @@ web/node_modules/
 web/.next/
 web/out/
 web/.vercel/
+extension/chromium/node_modules/
+extension/chromium/dist/
 
 # OS / local
 .DS_Store

@@ -2,17 +2,26 @@
   "manifest_version": 3,
   "name": "JieHuo Router",
   "version": "0.1.0",
-  "description": "Routes address-bar searches to Google or Perplexity locally.",
-  "permissions": ["storage", "tabs", "webNavigation"],
+  "description": "Routes address-bar searches to Google or Perplexity with a local neural model.",
+  "permissions": ["declarativeNetRequestWithHostAccess", "offscreen", "storage", "tabs"],
   "host_permissions": ["https://jiehuo.vercel.app/*"],
   "background": {
     "service_worker": "service_worker.js"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
   },
   "action": {
     "default_popup": "popup.html",
     "default_title": "JieHuo Router"
   },
   "options_page": "options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["route.html"],
+      "matches": ["https://jiehuo.vercel.app/*"]
+    }
+  ],
   "omnibox": {
     "keyword": "jh"
   }
